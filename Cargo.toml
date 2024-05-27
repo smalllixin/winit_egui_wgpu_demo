@@ -1,0 +1,27 @@
+[package]
+name = "painterboot"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+wgpu = {version = "0.20.0"}
+winit = {version = "0.29.15", features = ["rwh_06"]}
+pollster = "0.3.0"
+cfg-if = {version = "1.0.0"}
+web-sys = "0.3.69"
+log = "0.4.21"
+env_logger = {version = "0.11.3"}
+
+# egui family
+egui = { version = "0.27", features = ["bytemuck"] }
+egui-winit = "0.27.2"
+egui-wgpu = "0.27.2"
+egui_demo_lib = { version = "0.27", default-features = false }
+
+[patch.crates-io]
+egui = { git = "https://github.com/emilk/egui.git", branch = "master" }
+egui-winit = { git = "https://github.com/emilk/egui.git", branch = "master" }
+egui-wgpu = { git = "https://github.com/emilk/egui.git", branch = "master" }
+egui_demo_lib = { git = "https://github.com/emilk/egui.git", branch = "master" }
