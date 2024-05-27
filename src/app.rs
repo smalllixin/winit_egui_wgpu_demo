@@ -2,8 +2,11 @@ use egui_demo_lib::DemoWindows;
 use egui_wgpu::ScreenDescriptor;
 use log::info;
 use wgpu::{Device, Queue, Surface};
-use winit::event::WindowEvent;
-use winit::window::Window;
+use winit::application::ApplicationHandler;
+use winit::event::{ElementState, KeyEvent, WindowEvent};
+use winit::event_loop::ActiveEventLoop;
+use winit::keyboard::{Key, NamedKey};
+use winit::window::{Window, WindowId};
 use crate::gui::EguiAdapter;
 
 pub struct GpuApp<'a> {
@@ -19,6 +22,71 @@ pub struct GpuApp<'a> {
     egui_adapter: EguiAdapter,
 
     demo_windows: DemoWindows,
+
+    surface_configured: bool,
+}
+
+impl ApplicationHandler for GpuApp<'_> {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        todo!()
+    }
+
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, window_id: WindowId, event: WindowEvent) {
+        if window_id != self.window.id() {
+            return;
+        }
+
+        if !self.input(&event) {
+            match event {
+                WindowEvent::CloseRequested
+                | WindowEvent::KeyboardInput {
+                    event:
+                    KeyEvent {
+                        state: ElementState::Pressed,
+                        logical_key: Key::Named(NamedKey::Escape),
+                        ..
+                    },
+                    ..
+                } => event_loop.exit(),
+                WindowEvent::Resized(physical_size) => {
+                    self.surface_configured = true;
+                    self.resize(physical_size);
+                }
+                WindowEvent::RedrawRequested => {
+
+                    self.window.request_redraw();
+
+                    if !self.surface_configured {
+                        return;
+                    }
+
+                    self.update();
+
+                    match self.render() {
+                        Ok(_) => {}
+                        // Reconfigure the surface if it's lost or outdated
+                        Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                            self.resize(self.size)
+                        }
+                        // The system is out of memory, we should probably quit
+                        Err(wgpu::SurfaceError::OutOfMemory) => {
+                            log::error!("Out of memory");
+                            event_loop.exit();
+                        }
+                        // We're ignoring timeouts
+                        Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
+                    }
+                }
+
+                _ => {}
+            };
+            self.egui_adapter.handle_input(self.window, &event);
+        }
+    }
+
+    // fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+    //     todo!()
+    // }
 }
 
 
@@ -114,6 +182,7 @@ impl <'a> GpuApp<'a> {
             window,
             egui_adapter,
             demo_windows: DemoWindows::default(),
+            surface_configured: false,
         }
     }
 

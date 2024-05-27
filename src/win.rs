@@ -2,8 +2,8 @@ use winit::{
     event::*,
     event_loop::EventLoop,
     keyboard::{Key, NamedKey},
-    window::{WindowBuilder},
 };
+use winit::window::Window;
 use crate::app::GpuApp;
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
@@ -17,8 +17,9 @@ pub async fn run() {
         }
     }
 
-    let event_loop = EventLoop::new().unwrap();
-    let window = WindowBuilder::new().build(&event_loop).unwrap();
+    let event_loop = EventLoop::with_user_event().build().unwrap();
+    #[allow(deprecated)]
+    let window = event_loop.create_window(Window::default_attributes()).unwrap();
 
     #[cfg(target_arch = "wasm32")]
     {
@@ -42,62 +43,5 @@ pub async fn run() {
     // State::new uses async code, so we're going to wait for it to finish
     let mut state = GpuApp::new(&window).await;
 
-    let mut surface_configured = false;
-
-    event_loop
-        .run(move |event, control_flow| match event {
-            Event::WindowEvent {
-                ref event,
-                window_id,
-            } if window_id == state.window().id() => {
-                if !state.input(event) {
-                    match event {
-                        WindowEvent::CloseRequested
-                        | WindowEvent::KeyboardInput {
-                            event:
-                            KeyEvent {
-                                state: ElementState::Pressed,
-                                logical_key: Key::Named(NamedKey::Escape),
-                                ..
-                            },
-                            ..
-                        } => control_flow.exit(),
-                        WindowEvent::Resized(physical_size) => {
-                            surface_configured = true;
-                            state.resize(*physical_size);
-                        }
-                        WindowEvent::RedrawRequested => {
-
-                            state.window().request_redraw();
-
-                            if !surface_configured {
-                                return;
-                            }
-
-                            state.update();
-
-                            match state.render() {
-                                Ok(_) => {}
-                                // Reconfigure the surface if it's lost or outdated
-                                Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                                    state.resize(state.size)
-                                }
-                                // The system is out of memory, we should probably quit
-                                Err(wgpu::SurfaceError::OutOfMemory) => {
-                                    log::error!("Out of memory");
-                                    control_flow.exit();
-                                }
-                                // We're ignoring timeouts
-                                Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
-                            }
-                        }
-
-                        _ => {}
-                    };
-                    let w = state.window_mut();
-                    state.egui_adapter().handle_input(w, &event);
-                }
-            }
-        _ => {}
-    }).unwrap();
+    let _ = event_loop.run_app(&mut state);
 }
